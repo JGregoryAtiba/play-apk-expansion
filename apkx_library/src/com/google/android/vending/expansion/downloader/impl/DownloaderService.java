@@ -30,6 +30,7 @@ import com.google.android.vending.licensing.LicenseCheckerCallback;
 import com.google.android.vending.licensing.Policy;
 
 import android.app.AlarmManager;
+import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
@@ -42,6 +43,7 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiManager;
+import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Messenger;
@@ -699,7 +701,12 @@ public abstract class DownloaderService extends CustomIntentService implements I
                 Intent fileIntent = new Intent();
                 fileIntent.setClassName(classPackage, className);
                 fileIntent.putExtra(EXTRA_PENDING_INTENT, pendingIntent);
-                context.startService(fileIntent);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(fileIntent);
+                }
+                else {
+                    context.startService(fileIntent);
+                }
                 break;
         }
         return status;
@@ -1190,10 +1197,19 @@ public abstract class DownloaderService extends CustomIntentService implements I
             ApplicationInfo ai = getApplicationInfo();
             CharSequence applicationLabel = getPackageManager().getApplicationLabel(ai);
             mNotification = new DownloadNotification(this, applicationLabel);
-
         } catch (NameNotFoundException e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public int onStartCommand(Intent paramIntent, int flags, int startId) {
+        int result = super.onStartCommand(paramIntent, flags, startId);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            Notification notification = mNotification.getInitialNotification();
+            startForeground(DownloadNotification.NOTIFICATION_ID, notification);
+        }
+        return result;
     }
 
     /**
